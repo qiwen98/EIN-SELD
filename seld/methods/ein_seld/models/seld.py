@@ -121,20 +121,21 @@ class EINV2(nn.Module):
         x_sed = x_sed.permute(2, 0, 1) # (T, N, C)
         x_doa = x_doa.permute(2, 0, 1) # (T, N, C)
 
-        x_sed_1 = self.sed_trans_track1(x_sed).transpose(0, 1) # (N, T, C)
-        x_sed_2 = self.sed_trans_track2(x_sed).transpose(0, 1) # (N, T, C)   
+        no_fc_x_sed_1 = self.sed_trans_track1(x_sed).transpose(0, 1) # (N, T, C)
+        no_fc_x_sed_2 = self.sed_trans_track2(x_sed).transpose(0, 1) # (N, T, C)
+        no_fc_x_sed = torch.stack((no_fc_x_sed_1, no_fc_x_sed_2), 2)
         x_doa_1 = self.doa_trans_track1(x_doa).transpose(0, 1) # (N, T, C)
         x_doa_2 = self.doa_trans_track2(x_doa).transpose(0, 1) # (N, T, C)
 
         # fc
-        x_sed_1 = self.final_act_sed(self.fc_sed_track1(x_sed_1))
-        x_sed_2 = self.final_act_sed(self.fc_sed_track2(x_sed_2))
+        x_sed_1 = self.final_act_sed(self.fc_sed_track1(no_fc_x_sed_1))
+        x_sed_2 = self.final_act_sed(self.fc_sed_track2(no_fc_x_sed_2))
         x_sed = torch.stack((x_sed_1, x_sed_2), 2)
         x_doa_1 = self.final_act_doa(self.fc_doa_track1(x_doa_1))
         x_doa_2 = self.final_act_doa(self.fc_doa_track2(x_doa_2))
         x_doa = torch.stack((x_doa_1, x_doa_2), 2)
         output = {
-            'sed': x_sed,
+            'sed': no_fc_x_sed,
             'doa': x_doa,
         }
 

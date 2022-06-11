@@ -4,7 +4,7 @@ set -e
 
 # check bin requirement
 command -v wget >/dev/null 2>&1 || { echo 'wget is missing' >&2; exit 1; }
-command -v zip >/dev/null 2>&1 || { echo 'zip is missing' >&2; exit 1; }
+command -v 7z >/dev/null 2>&1 || { echo 'zip is missing' >&2; exit 1; }
 command -v unzip >/dev/null 2>&1 || { echo 'unzip is missing' >&2; exit 1; }
 
 ## dcase 2020 Task 3
@@ -15,7 +15,7 @@ Download_packages_dir=$Dataset_dir'/downloaded_packages'
 mkdir -p $Download_packages_dir
 
 # dev
-wget -P $Download_packages_dir 'https://zenodo.org/record/3870859/files/foa_dev.z01'
+wget -P $Download_packages_dir 'https://zenodo.org/record/3870859/files/foa_dev.z01' --no-check-certificate
 wget -P $Download_packages_dir 'https://zenodo.org/record/3870859/files/foa_dev.z02'
 wget -P $Download_packages_dir 'https://zenodo.org/record/3870859/files/foa_dev.zip'
 wget -P $Download_packages_dir 'https://zenodo.org/record/3870859/files/foa_eval.zip'

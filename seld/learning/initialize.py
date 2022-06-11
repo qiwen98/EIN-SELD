@@ -9,7 +9,7 @@ import numpy as np
 import torch
 import torch.optim as optim
 from torch.backends import cudnn
-from torch.utils.tensorboard import SummaryWriter
+# from torch.utils.tensorboard import SummaryWriter
 from utils.common import create_logging
 from utils.config import (get_afextractor, get_generator, get_losses,
                           get_metrics, get_models, get_optimizer, get_trainer,
@@ -146,8 +146,8 @@ def init_infer(args, cfg, dataset):
     """
 
     '''Cuda'''
-    args.cuda = not args.no_cuda and torch.cuda.is_available() 
-
+    args.cuda = not args.no_cuda and torch.cuda.is_available()
+    print(args.cuda)
     '''Directories'''
     print('Inference ID is {}\n'.format(cfg['inference']['infer_id']))
     out_infer_dir = Path(cfg['workspace_dir']).joinpath('out_infer').joinpath(cfg['method']) \

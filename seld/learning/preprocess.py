@@ -1,3 +1,4 @@
+import logging
 import shutil
 from functools import reduce
 from pathlib import Path
@@ -8,6 +9,7 @@ import librosa
 import numpy as np
 import pandas as pd
 import torch
+import os
 from methods.data import BaseDataset, collate_fn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -68,18 +70,21 @@ class Preprocessor:
         
         for h5_dir in self.data_h5_dir_list:
             if h5_dir.is_dir():
-                flag = input("HDF5 folder {} is already existed, delete it? (y/n)".format(h5_dir)).lower()
-                if flag == 'y':
-                    shutil.rmtree(h5_dir)
-                elif flag == 'n':
-                    print("User select not to remove the HDF5 folder {}. The process will quit.\n".format(h5_dir))
-                    return
+                # flag = input("HDF5 folder {} is already existed, delete it? (y/n)".format(h5_dir)).lower()
+                # if flag == 'y':
+                shutil.rmtree(h5_dir)
+                # elif flag == 'n':
+                #     print("User select not to remove the HDF5 folder {}. The process will quit.\n".format(h5_dir))
+                #     return
             h5_dir.mkdir(parents=True)
         for statistic_path in self.data_statistics_path_list:
             if statistic_path.is_file():
                 statistic_path.unlink()
 
         for idx, data_dir in enumerate(self.data_dir_list):
+            print(data_dir)
+            data_dir = data_dir.joinpath('normed')
+            print(data_dir,'after joined')
             begin_time = timer()
             h5_dir = self.data_h5_dir_list[idx]
             statistic_path = self.data_statistics_path_list[idx]
@@ -90,9 +95,11 @@ class Preprocessor:
             for data_path in iterator:
                 # read data
                 data, _ = librosa.load(data_path, sr=self.cfg['data']['sample_rate'], mono=False)
+                #print(data)
                 if len(data.shape) == 1:
                     data = data[None,:]
                 '''data: (channels, samples)'''
+
 
                 # silent data statistics
                 lst = np.sum(np.abs(data), axis=1) > data.shape[1]*1e-4
@@ -103,12 +110,29 @@ class Preprocessor:
                         tqdm.write("Silent file in feature extractor: {}".format(data_path.name))
                         tqdm.write("Total silent files are: {}\n".format(silent_audio_count))
 
+                # two channel steoreo format
+                if data.shape[0]==2:
+
+                    #data = np.pad(data, [(0, 2)], mode='constant', constant_values=1)
+                    a = data[:, :1440000]
+                    b = a
+                    data = np.vstack((a,b))
+                    print(data.shape)
+                    #trim
+
+                # pad to 1440000 in dimension 1 with 0s
+                if data.shape[1]!=1440000:
+                    value_to_pad = 1440000-data.shape[1]
+                    data =np.pad(data, [(0, 0), (0, value_to_pad)], mode='constant')
+                    print(data.shape)
+
                 # save to h5py
                 h5_path = h5_dir.joinpath(data_path.stem + '.h5')
                 with h5py.File(h5_path, 'w') as hf:
                     hf.create_dataset(name='waveform', data=float_samples_to_int16(data), dtype=np.int16)
 
                 audio_count += 1
+
 
                 tqdm.write('{}, {}, {}'.format(audio_count, h5_path, data.shape))
 
@@ -139,6 +163,7 @@ class Preprocessor:
             pin_memory=True
         )
         af_extractor = get_afextractor(self.cfg, cuda_enabled).eval()
+        print(len(data_generator))
         iterator = tqdm(enumerate(data_generator), total=len(data_generator), unit='it')
         features = []
         begin_time = timer()
@@ -146,6 +171,7 @@ class Preprocessor:
             if it == len(data_generator):
                 break
             batch_x = batch_sample['waveform']
+
             batch_x.require_grad = False
             if cuda_enabled:
                 batch_x = batch_x.cuda(non_blocking=True)
@@ -153,6 +179,7 @@ class Preprocessor:
             C, _, _, F = batch_y.shape
             features.append(batch_y.reshape(C, -1, F).cpu().numpy())
         iterator.close()
+        #print(features)
         features = np.concatenate(features, axis=1)
         mean = []
         std = []

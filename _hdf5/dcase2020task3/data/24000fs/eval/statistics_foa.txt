@@ -1,0 +1,7 @@
+Silent file in feature extractor: 1_normed.wav
+
+Silent file in feature extractor: 2_normed.wav
+
+Total number of audio clips extracted: 2
+Total number of silent audio clips is: 2
+

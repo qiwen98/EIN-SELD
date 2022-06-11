@@ -7,6 +7,7 @@ from methods.inference import BaseInferer
 from tqdm import tqdm
 
 from .training import to_dcase_format
+import sys
 
 
 class Inferer(BaseInferer):
@@ -30,6 +31,7 @@ class Inferer(BaseInferer):
             self.mean = torch.tensor(self.mean, dtype=torch.float32).cuda()
             self.std = torch.tensor(self.std, dtype=torch.float32).cuda()
 
+
         self.label_resolution = dataset.label_resolution
         self.label_interp_ratio = int(self.label_resolution * cfg['data']['sample_rate'] / cfg['data']['hop_length'])
         
@@ -48,7 +50,11 @@ class Inferer(BaseInferer):
                 batch_x = self.af_extractor(batch_x)
                 batch_x = (batch_x - self.mean) / self.std
                 pred = self.model(batch_x)
-                pred['sed'] = torch.sigmoid(pred['sed'])
+                #pred['sed'] = torch.sigmoid(pred['sed'])
+                pred['sed'] = pred['sed']
+                print(pred['sed'].shape)
+                # print('sigmoid',torch.sigmoid(pred['sed']))
+                print()
             fn_list.append(batch_sample['filename'])
             n_segment_list.append(batch_sample['n_segment'])
             pred_sed_list.append(pred['sed'].cpu().detach().numpy())
@@ -59,6 +65,7 @@ class Inferer(BaseInferer):
         self.fn_list = [fn for row in fn_list for fn in row]
         self.n_segment_list = [n_segment for row in n_segment_list for n_segment in row]
         pred_sed = np.concatenate(pred_sed_list, axis=0)
+        print(pred_sed.shape)
         pred_doa = np.concatenate(pred_doa_list, axis=0)
 
         self.num_segments = max(self.n_segment_list) + 1
@@ -66,6 +73,7 @@ class Inferer(BaseInferer):
         origin_T = int(pred_sed.shape[1]*self.num_segments)
         pred_sed = pred_sed.reshape((origin_num_clips, origin_T, 2, -1))[:, :int(60 / self.label_resolution)]
         pred_doa = pred_doa.reshape((origin_num_clips, origin_T, 2, -1))[:, :int(60 / self.label_resolution)]
+        print(pred_sed.shape)
 
         pred = {
             'sed': pred_sed,
@@ -86,16 +94,41 @@ class Inferer(BaseInferer):
         pred_sed = np.array(pred_sed).mean(axis=0)
         pred_doa = np.array(pred_doa).mean(axis=0)
 
+        # #print(pred_sed)
+        # print("pred-shape")
+        # print(pred_sed.shape)
+        with open('result_string.npy', 'wb') as f:
+            np.save(f, np.array(pred_sed))
         N, T = pred_sed.shape[:2]
         pred_sed_max = pred_sed.max(axis=-1)
+        #np.set_printoptions(threshold=sys.maxsize)
+        # print('max=',pred_sed_max)
+        # print('max shape=', pred_sed_max.shape)
+        # print(pred_sed_max[0][0])
+        # print(pred_sed_max[0][1])
         pred_sed_max_idx = pred_sed.argmax(axis=-1)
+        # print('max id shape=', pred_sed_max_idx.shape)
+        # print(pred_sed_max_idx[0][0])
+        # print(pred_sed_max_idx[0][1])
         pred_sed = np.zeros_like(pred_sed)
         for b_idx in range(N):
             for t_idx in range(T):
                 for track_idx in range(2):
                     pred_sed[b_idx, t_idx, track_idx, pred_sed_max_idx[b_idx, t_idx, track_idx]] = \
                         pred_sed_max[b_idx, t_idx, track_idx]
+
+        # print('last two')
+        # print(pred_sed[0][0])
+        # print(pred_sed[0][1])
         pred_sed = (pred_sed > self.cfg['inference']['threshold_sed']).astype(np.float32)
+        # print('last one')
+        print(pred_sed[0][0])
+        print(pred_sed[0][1])
+        print(pred_sed[0][398])
+        print(pred_sed[0][399])
+        print(pred_sed[0][400])
+        print(pred_sed[0][401])
+        print(pred_sed[0].shape)
         # convert Catesian to Spherical
         azi = np.arctan2(pred_doa[..., 1], pred_doa[..., 0])
         elev = np.arctan2(pred_doa[..., 2], np.sqrt(pred_doa[..., 0]**2 + pred_doa[..., 1]**2))
@@ -107,6 +140,9 @@ class Inferer(BaseInferer):
             pred_sed_f = pred_sed[n][None, ...]
             pred_doa_f = pred_doa[n][None, ...]
             pred_dcase_format_dict = to_dcase_format(pred_sed_f, pred_doa_f)
+            #if n==0:
+                #print(pred_dcase_format_dict)
+                #print(len(pred_dcase_format_dict))
             csv_path = submissions_dir.joinpath(fn + '.csv')
             self.write_submission(csv_path, pred_dcase_format_dict)
         print('Rsults are saved to {}\n'.format(str(submissions_dir)))

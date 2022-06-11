@@ -224,7 +224,9 @@ def to_dcase_format(sed_labels, doa_labels):
     output_dict = {}
     for n_idx in range(batch_size*T):
         for n_track in range(num_tracks):
+            #print('track',n_track)
             class_index = list(np.where(sed_labels[n_idx, n_track, :])[0])
+            #print(sed_labels[n_idx, n_track, :])
             assert len(class_index) <= 1, 'class_index should be smaller or equal to 1!!\n'
             if class_index:
                 event_doa = [class_index[0], int(np.around(doa_labels[n_idx, n_track, 0] * 180 / np.pi)), \
@@ -232,5 +234,6 @@ def to_dcase_format(sed_labels, doa_labels):
                 if n_idx not in output_dict:
                     output_dict[n_idx] = []
                 output_dict[n_idx].append(event_doa)
+
     return output_dict
 

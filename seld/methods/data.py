@@ -35,6 +35,7 @@ class BaseDataset(Dataset):
         # Data path
         data_sr_folder_name = '{}fs'.format(self.sample_rate)
         main_data_dir = Path(cfg['hdf5_dir']).joinpath(cfg['dataset']).joinpath('data').joinpath(data_sr_folder_name)
+
         self.data_dir = main_data_dir.joinpath('dev').joinpath(cfg['data']['type'])
         self.fn_list = [path.stem for path in sorted(self.data_dir.glob('*.h5')) \
             if not path.name.startswith('.')]           

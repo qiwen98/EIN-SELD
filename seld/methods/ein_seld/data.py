@@ -109,9 +109,11 @@ class UserDataset(Dataset):
         elif self.dataset_type == 'eval_test':
             data_dirs = [eval_data_dir]
             self.meta_dir = eval_meta_dir
+            print(self.meta_dir)
             self.paths_list = [path for data_dir in data_dirs for path in sorted(data_dir.glob('*.h5')) \
                 if not path.name.startswith('.')]
         self.paths_list = [Path(str(path) + '%' + str(n)) for path in self.paths_list for n in range(self.num_segments)]
+        #print(self.paths_list)
 
         # Read into memory
         if self.read_into_mem:
