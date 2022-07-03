@@ -45,7 +45,7 @@ def main(args, cfg):
     # Inference
     elif args.mode == 'infer':
         infer_initializer = initialize.init_infer(args, cfg, dataset)
-        infer.infer(cfg, dataset, **infer_initializer)
+        infer.infer(cfg,args, dataset, **infer_initializer)
     
     # Evaluate
     elif args.mode == 'evaluate':

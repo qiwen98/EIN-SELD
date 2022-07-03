@@ -49,6 +49,7 @@ def parse_cli_overides():
     parser_train.add_argument('--read_into_mem', action='store_true', help='Read dataloader into memory')
     parser_train.add_argument('--no_cuda', action='store_true', help='Do not use cuda.')
     parser_infer.add_argument('--num_workers', type=int, default=8, metavar='N')
+    parser_infer.add_argument('--npy_file_name', type=str, default='model_results', metavar='N')
     parser_infer.add_argument('--read_into_mem', action='store_true')
     parser_infer.add_argument('--no_cuda', action='store_true', help='Do not use cuda.')
 

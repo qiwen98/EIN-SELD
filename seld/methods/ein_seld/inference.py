@@ -39,6 +39,8 @@ class Inferer(BaseInferer):
         fn_list, n_segment_list = [], []
         pred_sed_list, pred_doa_list = [], []
 
+        torch.cuda.empty_cache()
+
         iterator = tqdm(generator)
         for batch_sample in iterator:
             batch_x = batch_sample['waveform']
@@ -81,7 +83,7 @@ class Inferer(BaseInferer):
         }
         return pred
 
-    def fusion(self, submissions_dir, preds):
+    def fusion(self,args, submissions_dir, preds):
         """ Ensamble predictions
 
         """
@@ -97,7 +99,7 @@ class Inferer(BaseInferer):
         # #print(pred_sed)
         # print("pred-shape")
         # print(pred_sed.shape)
-        with open('result_string.npy', 'wb') as f:
+        with open('{}.npy'.format(args.npy_file_name), 'wb') as f:
             np.save(f, np.array(pred_sed))
         N, T = pred_sed.shape[:2]
         pred_sed_max = pred_sed.max(axis=-1)

@@ -9,11 +9,13 @@ import matplotlib.pyplot as plt
 from numpy import dot
 from numpy.linalg import norm
 import os
+import pandas as pd
 
 
 parser = argparse.ArgumentParser(description="testing and prepare npy for plot")
-parser.add_argument("--filename", type=str, default="result", help="filename, default is result.")
+parser.add_argument("--filename", type=str, default="result_string", help="filename, default is result.")
 parser.add_argument("--channel", type=str, default="channel_2", help="channel_1/channel_2")
+parser.add_argument("--outputfilename", type=int, default="0", help="output file name for current video chunck")
 
 
 args_opt = parser.parse_args()
@@ -127,14 +129,32 @@ print('each array correspond to one minute interval')
 print(modified_output)
 dir= Path(".\\timestamp_results")
 os.makedirs(dir, exist_ok = True)
-test_file_name = 'timestamp_{}_v2.npy'.format(args_opt.filename)
+output_file_name = 'timestamp_{}_{}_v2.pkl'.format(args_opt.filename,args_opt.outputfilename)
 
-test_file_dir = join(dir, test_file_name)
-# wrtie the test results
-with open(test_file_dir, 'wb') as f:
-    np.save(f, modified_output)
+output_file_dir = join(dir, output_file_name)
+# wriet the test results into a pickle file
 
-# with open('timestamp_result_brassband.npy', 'rb') as f:
-#     a = np.load(f)
-#     #a[0][1]-> for first min results
-#     #a[0][2]-> for second min results
+
+df = pd.DataFrame(columns=['t1','t2'])
+
+firstmin = modified_output[0]
+secondmin = modified_output[1]
+
+time_offset = 0
+
+new_ts = []
+for t in firstmin:
+    if t > time_offset:
+        new_ts.append(t - time_offset)
+for t in secondmin:
+    if t > time_offset:
+        new_ts.append(t - time_offset)
+
+for num, ts in enumerate(new_ts):
+    if num < len(new_ts) - 1:
+        df.loc[num] = [new_ts[num], new_ts[num + 1]]
+
+print(df)
+
+df.to_pickle(output_file_dir)
+

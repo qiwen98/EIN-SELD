@@ -3,170 +3,42 @@ An Improved Event-Independent Network (EIN) for Polyphonic Sound Event Localizat
 
 from Centre for Vision, Speech and Signal Processing, University of Surrey.
 
-## Contents
-
-- [Introduction](#Introduction)
-- [Requirements](#Requirements)
-- [Download Dataset](#Download-Dataset)
-- [Preprocessing](#Preprocessing)
-- [QuickEvaluate](#QuickEvaluate)
-- [Usage](#Usage)
-  * [Training](#Training)
-  * [Prediction](#Prediction)
-  * [Evaluation](#Evaluation)
-- [Results](#Results)
-- [FAQs](#FAQs)
-- [Citing](#Citing)
-- [Reference](#Reference)
-
-
-## Introduction
-
-This is a Pytorch implementation of Event-Independent Networks for Polyphonic SELD. 
-
-Event-Independent Networks for Polyphonic SELD uses a trackwise output format and multi-task learning (MTL) of a soft parameter-sharing scheme. For more information, please read papers [here](#Citing).
-
- <!-- [*An Improved Event-Independent Network for Polyphonic Sound Event Localization and Detection*](https://arxiv.org/abs/2010.13092), and [*Event-Independent Network for Polyphonic Sound Event Localization and Detection*](https://arxiv.org/abs/2010.00140).  -->
-
-The features of this method are:
-- It uses a trackwise output format to detect different sound events of the same type but with different DoAs.
-- It uses a permutation-invaiant training (PIT) to solve the track permutation problem introducted by trackwise output format.
-- It uses multi-head self-attention (MHSA) to separate tracks.
-- It uses multi-task learning (MTL) of a soft parameter-sharing scheme for joint-SELD.
-
-Currently, the code is availabel for [*TAU-NIGENS Spatial Sound Events 2020*](http://dcase.community/challenge2020/task-sound-event-localization-and-detection#download) dataset. Data augmentation methods are not included.
-
-## Requirements
-
-We provide two ways to setup the environment. Both are based on [Anaconda](https://www.anaconda.com/products/individual).
-
-1. Use the provided `prepare_env.sh`. Note that you need to set the `anaconda_dir` in `prepare_env.sh` to your anaconda directory, then directly run
-
-    ```bash
-    bash scripts/prepare_env.sh
-    ```
-
-2. Use the provided `environment.yml`. Note that you also need to set the `prefix` to your aimed env directory, then directly run
-
-    ```bash
-    conda env create -f environment.yml
-    ```
-    
-After setup your environment, don't forget to activate it
-
-```bash
-conda activate ein
-```
-
-## Download Dataset
-
-Download dataset is easy. Directly run
-
-```bash
-bash scripts/download_dataset.sh
-```
-
-## Preprocessing
-
-It is needed to preprocess the data and meta files. `.wav` files will be saved to `.h5` files. Meta files will also be converted to `.h5` files. After downloading the data, directly run
-
-```bash
-bash scripts/preproc.sh
-```
-
-Preprocessing for meta files (labels) separate labels to different tracks, each with up to one event and a corresponding DoA. The same event is consistently put in the same track. For frame-level permutation-invariant training, this may not be necessary, but for chunk-level PIT or no PIT, consistently arrange the same event in the same track is reasonable.
-
-## QuickEvaluate
-
-We uploaded the pre-trained model here. Download it and unzip it in the code folder (`EIN-SELD` folder) using
-
-```bash
-wget 'https://zenodo.org/record/4158864/files/out_train.zip' && unzip out_train.zip
-```
-
-Then directly run
-
-```bash
-bash scripts/predict.sh && sh scripts/evaluate.sh
-```
 
 ## Usage
 
+the model pth weights should stored under`out_train/ein_seld/EINV2_tPIT_n1/checkpoints`
+
 Hyper-parameters are stored in `./configs/ein_seld/seld.yaml`. You can change some of them, such as `train_chunklen_sec`, `train_hoplen_sec`, `test_chunklen_sec`, `test_hoplen_sec`, `batch_size`, `lr` and others.
 
-### Training
-
-To train a model yourself, setup `./configs/ein_seld/seld.yaml` and directly run
+For unit test use during inference time:
 
 ```bash
-bash scripts/train.sh
+  # first cut video based on the duration length and translate them into wav format # and move it to "./_dataset/dataset_root/foa_eval"
+  ffmpeg -ss $x -i video//string_cut.mp4 -vn -acodec pcm_s16le -ar 24000 -ac 2 -t 60 "./_dataset/dataset_root/foa_eval/string_left_$x.wav"
+
+  # Norm Audio
+  # process the audio in and stored it in `_dataset/dataset_root/foa_eval/normed`
+  python seld/NormAudio.py -c $CONFIG_FILE infer --num_workers=0
+
+  # Extract data
+  # take audio from `_dataset/dataset_root/foa_eval/normed`, extract features, and store it into `_hdf5/dcase2020task3/scalar`
+  python seld/main.py -c $CONFIG_FILE preprocess --preproc_mode='extract_data' --dataset_type='eval'
+
+  # predict
+  # take feature from `_hdf5/dcase2020task3/scalar` and infer the timestamp features.
+  # feature is stored under a npy file
+  python seld/main.py -c $CONFIG_FILE infer --num_workers=0 --npy_file_name='model_results'
+
+  # post process the time stamps features and get the time stamps results. the results are stored under '.\timestamp_results'
+  python investigate.py --filename='result_string' --outputfilename=$x
 ```
 
-`train_fold` and `valid_fold` in `./configs/ein_seld/seld.yaml` means using what folds to train and validate. Note that `valid_fold` can be `None` which means no validation is needed, and this is usually used for training using fold 1-6.
 
-`overlap` can be  `1` or `2` or combined `1&2`, which means using non-overlapped sound event to train or overlapped to train or both.
 
-`--seed` is set to a random integer by default. You can set it to a fixed number. Results will not be completely the same if RNN or Transformer is used.
-
-You can consider to add `--read_into_mem` argument in `train.sh` to pre-load all of the data into memory to increase the training speed, according to your resources. 
-
-`--num_workers` also affects the training speed, adjust it according to your resources.
-
-### Prediction
-
-Prediction predicts resutls and save to `./out_infer` folder. The saved results is the submission result for DCASE challenge. Directly run
+The bash script below will automate the **whole** timestamp output procedure (upper parts) given the file in video/video.mp4:
 
 ```bash
-bash scripts/predict.sh
-```
-
-Prediction predicts results on `testset_type` set, which can be `dev` or `eval`. If it is `dev`, `test_fold` cannot be `None`.
-
-
-### Evaluation
-
-Evaluation evaluate the generated submission result. Directly run
-
-```bash
-bash scripts/evaluate.sh
-```
-
-## Results
-
-It is notable that EINV2-DA is a single model with plain VGGish architecture using only the channel-rotation and the specaug data-augmentation methods.
-
-<img src="figures/performance_compare.png" width="700">
-
-## FAQs
-
-1. If you have any question, please email to caoyfive@gmail.com or report an issue here.
-
-2. Currently the `pin_memory` can only be set to `True`. For more information, please check [Pytorch Doc](https://pytorch.org/docs/stable/data.html#memory-pinning) and [Nvidia Developer Blog](https://developer.nvidia.com/blog/how-optimize-data-transfers-cuda-cc/).
-
-3. After downloading, you can delete `downloaded_packages` folder to save some space.
-
-## Citing
-
-If you use the code, please consider citing the papers below
-
-[[1]. Yin Cao, Turab Iqbal, Qiuqiang Kong, Fengyan An, Wenwu Wang, Mark D. Plumbley, "*An Improved Event-Independent Network for Polyphonic Sound Event Localization and Detection*", submitted for publication](http://bit.ly/2N8cF6w)
-```
-@article{cao2020anevent,
-  title={An Improved Event-Independent Network for Polyphonic Sound Event Localization and Detection},
-  author={Cao, Yin and Iqbal, Turab and Kong, Qiuqiang and Fengyan, An and Wang, Wenwu and Plumbley, Mark D},
-  journal={arXiv preprint arXiv:2010.13092},
-  year={2020}
-}
-```
-
-[[2]. Yin Cao, Turab Iqbal, Qiuqiang Kong, Yue Zhong, Wenwu Wang, Mark D. Plumbley, "*Event-Independent Network for Polyphonic Sound Event Localization and Detection*", DCASE 2020 Workshop, November 2020](https://bit.ly/2Tz8oJ9)
-```
-@article{cao2020event,
-  title={Event-Independent Network for Polyphonic Sound Event Localization and Detection},
-  author={Cao, Yin and Iqbal, Turab and Kong, Qiuqiang and Zhong, Yue and Wang, Wenwu and Plumbley, Mark D},
-  journal={arXiv preprint arXiv:2010.00140},
-  year={2020}
-}
+bash scripts/realtime.sh
 ```
 
 ## Reference
